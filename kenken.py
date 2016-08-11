@@ -13,6 +13,7 @@
 
   
 from numpy import prod
+import itertools
 
 # This function makes a list of all of the valid rows, e.g, all permutations of
 # digits 1-4 (used once each).
@@ -68,7 +69,10 @@ def makeSquares():
                     squares += [[i,j,k,l]]
     return squares
 
-def plus(vals):
+def permute(xs, count=None):
+    return list(itertools.permutations(xs,count))
+
+def add(vals):
     return [sum(vals)]
 
 def sub(vals):
@@ -80,10 +84,13 @@ def mul(vals):
 def div(vals):
     return [vals[0] / float(vals[1]), vals[1] / float(vals[0])]
 
-opSwitch = {'a' : plus,
+opSwitch = {'a' : add,
             's' : sub,
             'm' : mul,
             'd' : div}
+
+def flatten(xs):
+	return [item for sublist in xs for item in sublist]
 
 # Now we get to the part which deals with the regions.  This is a class for 
 # defining each region, which includes the cells that are in the region, the operation
@@ -100,6 +107,66 @@ class Region:
             return True
         return False
 
+    def hasCorner(self):
+        xSet = {x[0] for x in self.cells}
+        ySet = {x[1] for x in self.cells}
+
+        if len(xSet) > 1 and len(ySet) > 1:
+            return True
+        
+        return False
+    
+    # Attempts to find all possible inputs to get answer for operation op across numFields fields.
+    # Needs the maxSize of the puzzle because an n-wide puzzle only has digits 1 through n
+    def possibleAnswers(self, maxSize):
+        numPool = range(1, maxSize + 1)
+        
+        if self.hasCorner(): # in this case we can have 2 of the same digit
+            numPool *= 2
+            
+        availableSets = permute(numPool, len(self.cells))
+        workableSets = [x for x in availableSets if self.answer in self.operation(x)]
+        
+        return workableSets
+
+    # Creates a list of 'partial squares', ex. a square that is all 0s except for the parts this region controls.
+    def makeSquareSections(self, maxSize):
+        squareList = []
+
+        for answerList in self.possibleAnswers(maxSize):
+            square = [[0 for x in range(maxSize)] for i in range(maxSize)]
+            
+            for ndx, answer in enumerate(answerList):
+                square[self.cells[ndx][0]][self.cells[ndx][1]] = answer
+
+            squareList.append(square)
+
+        return squareList
+
+def addArrays(arrs):
+    return [sum(x) for x in zip(*arrs)]
+    
+def addSquares(squares):
+    return [addArrays(xs) for xs in zip(*squares)]
+    
+def squareCombos1(r1, r2):
+    squares = []
+    r1s = r1.makeSquareSections(4)
+    r2s = r2.makeSquareSections(4)
+    
+    for partSq1 in r1s:
+        for partSq2 in r2s:
+            squares.append(addSquares([partSq1, partSq2]))
+
+    return squares
+
+def summedRegionSquares(regions):
+    squareSections = [r.makeSquareSections(4) for r in regions]
+    allSections = list(itertools.product(*squareSections))
+
+    return allSections
+#return [addSquares(section) for section in allSections]
+    
 
 # A simple funciton to print the square nicely.
 
@@ -230,6 +297,7 @@ def getFileInfo(filename):
    
 #def solvePuzzle():
 regionDict = getFileInfo('test3.txt')
+regionList = [regionDict[x] for x in regionDict]
 squares = makeSquares()
 winSquares = []
 for square in squares:

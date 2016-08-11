@@ -67,19 +67,19 @@ def makeSquares():
         print "cycle:", cycles, "there are",len(squares),"squares"
         #if cycles > 2: break
         secondRows = goodRowList([i], rows)
-        print "second", len(secondRows)
+#        print "second", len(secondRows)
         for j in secondRows:
             thirdRows = goodRowList([i,j], secondRows)
-            print "third", len(thirdRows), incount
+#            print "third", len(thirdRows), incount
             for k in thirdRows:
                 fourthRows = goodRowList([i,j,k], thirdRows)
-                print "4th", len(fourthRows), fourthRows
+#                print "4th", len(fourthRows), fourthRows
                 for l in fourthRows:
                     fifthRows = goodRowList([i,j,k,l] , fourthRows)
-                    print "5th", len(fifthRows) , incount
+#                    print "5th", len(fifthRows) , incount
                     for m in fifthRows:
                         sixthRows = goodRowList([i,j,k,l,m],  fifthRows)
-                        print "6th", len(sixthRows), incount             
+#                        print "6th", len(sixthRows), incount             
                         for n in sixthRows:
                             if invalidRows([i,j,k,l,m,n]):
                                 continue                            
@@ -87,7 +87,7 @@ def makeSquares():
                             
     return squares
 
-makeSquares() 
+#makeSquares() 
                 
 class Region:
      def __init__(self, cells, operation, answer):
