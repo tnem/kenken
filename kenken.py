@@ -31,10 +31,18 @@ def mul(vals):
 def div(vals):
     return [vals[0] / float(vals[1]), vals[1] / float(vals[0])]
 
-opSwitch = {'a' : add,
-            's' : sub,
-            'm' : mul,
-            'd' : div}
+def identity(vals):
+    return vals
+
+opSwitch = {'add'      : add,
+            'a'        : add,
+            's'        : sub,
+            'sub'      : sub,
+            'm'        : mul,
+            'mul'      : mul,
+            'd'        : div,
+            'div'      : div,
+            'identity' : identity}
 
 def flatten(xs):
     return [item for sublist in xs for item in sublist]
@@ -119,14 +127,15 @@ def squareIsValid(square):
 ## We create only valid regions, and then just check to see if they are
 ## valid squares.
 def makeSquareList(maxSize, regions):
-    endSquares = regions[0].makeSquareSections(maxSize)
+    regionSquareSections = sorted([r.makeSquareSections(maxSize) for r in regions], key=len)
+    
+    endSquares = regionSquareSections[0]
 
-    for region in regions[1:]:
+    for regionSquares in regionSquareSections[1:]:
         newSquares = set()
-        
+
         for esquare in endSquares:
-            #print "in esquare" + str(esquare)
-            for nsquare in region.makeSquareSections(maxSize):
+            for nsquare in regionSquares:
                 testSquare = addSquares([esquare, nsquare])
 
                 if squareIsValid(testSquare):
@@ -246,9 +255,10 @@ def getFileInfo(filename):
 # see if each square solves the puzzle.  It then prints all of the winning squares.
    
 def solvePuzzle():
-    regionDict, puzzleSize = getFileInfo('test3.txt')
+    regionDict, puzzleSize = getFileInfo('6-puzzle.txt')
     regionList = [regionDict[x] for x in regionDict]
 
+    #winSquares = []
     winSquares = makeSquareList(puzzleSize, regionList)
 
     print "the winning squares are:"  
