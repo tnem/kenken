@@ -14,60 +14,7 @@
   
 from numpy import prod
 import itertools
-
-# This function makes a list of all of the valid rows, e.g, all permutations of
-# digits 1-4 (used once each).
-
-def makeRowList():
-    posOne = [1,2,3,4]
-    rows = []
-    for i in posOne:
-        posTwo = list(posOne)
-        posTwo.remove(i)
-        for j in posTwo:
-            posThree = list(posTwo)
-            posThree.remove(j)
-            for k in posThree:
-                posFour = list(posThree)
-                posFour.remove(k)
-                rows += [[i,j,k,posFour[0]]]
-    return rows
-    
-# This funtion tests if a list of rows is valid, e.g., if there are any repeated 
-# digits in any of the columns.  It returns true if the list of rows is invalid 
-# and false if the list is valid. (backwards, I know)
-
-def invalidRows(rows):
-    for i in range(len(rows[0])):
-        col = [item[i] for item in rows]
-        if len(col) != len(set(col)):
-            return True
-    return False
-    
-# this  function returns a list of all of the possible valid squares, e.g.,
-# the combinations of 4 rows which have all 4 numbers in each column
-    
-def makeSquares():
-    squares = []
-    rows = makeRowList()
-    for i in rows:
-        secondRows = list(rows)
-        secondRows.remove(i)
-        for j in secondRows:
-            if invalidRows([i,j]):
-                continue
-            thirdRows = list(secondRows)
-            thirdRows.remove(j)
-            for k in thirdRows:
-                if invalidRows([i,j,k]):
-                    continue
-                fourthRows = list(thirdRows)
-                fourthRows.remove(k)
-                for l in fourthRows:
-                    if invalidRows([i,j,k,l]):
-                        continue
-                    squares += [[i,j,k,l]]
-    return squares
+import copy
 
 def permute(xs, count=None):
     return list(itertools.permutations(xs,count))
@@ -90,7 +37,10 @@ opSwitch = {'a' : add,
             'd' : div}
 
 def flatten(xs):
-	return [item for sublist in xs for item in sublist]
+    return [item for sublist in xs for item in sublist]
+
+def newSquare(maxSize):
+    return [[0 for x in range(maxSize)] for i in range(maxSize)]
 
 # Now we get to the part which deals with the regions.  This is a class for 
 # defining each region, which includes the cells that are in the region, the operation
@@ -102,11 +52,6 @@ class Region:
         self.operation = opSwitch[operation]
         self.answer = answer
         
-    def isValid(self, square):
-        if self.answer in self.operation(extractVals(square, self.cells)):
-            return True
-        return False
-
     def hasCorner(self):
         xSet = {x[0] for x in self.cells}
         ySet = {x[1] for x in self.cells}
@@ -118,6 +63,7 @@ class Region:
     
     # Attempts to find all possible inputs to get answer for operation op across numFields fields.
     # Needs the maxSize of the puzzle because an n-wide puzzle only has digits 1 through n
+    # in the future should determine how many of the same digit a region can have
     def possibleAnswers(self, maxSize):
         numPool = range(1, maxSize + 1)
         
@@ -134,7 +80,7 @@ class Region:
         squareList = []
 
         for answerList in self.possibleAnswers(maxSize):
-            square = [[0 for x in range(maxSize)] for i in range(maxSize)]
+            square = newSquare(maxSize)
             
             for ndx, answer in enumerate(answerList):
                 square[self.cells[ndx][0]][self.cells[ndx][1]] = answer
@@ -144,39 +90,62 @@ class Region:
         return squareList
 
 def addArrays(arrs):
-    return [sum(x) for x in zip(*arrs)]
+    return tuple([sum(x) for x in zip(*arrs)])
     
 def addSquares(squares):
-    return [addArrays(xs) for xs in zip(*squares)]
+    return tuple([addArrays(xs) for xs in zip(*squares)])
     
-def squareCombos1(r1, r2):
-    squares = []
-    r1s = r1.makeSquareSections(4)
-    r2s = r2.makeSquareSections(4)
-    
-    for partSq1 in r1s:
-        for partSq2 in r2s:
-            squares.append(addSquares([partSq1, partSq2]))
+def squareIsValidHoriz(square):
+    for idx, row in enumerate(square):
+        temp = []
+        for item in row:
+            if item in temp and item != 0:
+                return False
+            else:
+                temp.append(item)
 
-    return squares
+    return True
 
-def summedRegionSquares(regions):
-    squareSections = [r.makeSquareSections(4) for r in regions]
-    allSections = list(itertools.product(*squareSections))
+def squareIsValid(square):
+    # test horizontal
+    validHoriz = squareIsValidHoriz(square)
 
-    return allSections
-#return [addSquares(section) for section in allSections]
-    
+    rotSquare = zip(*square[::-1])
+    validVert = squareIsValidHoriz(rotSquare)
+
+    return validHoriz and validVert
+
+## This is kind of the opposite approach of the original scheme.
+## We create only valid regions, and then just check to see if they are
+## valid squares.
+def makeSquareList(maxSize, regions):
+    endSquares = regions[0].makeSquareSections(maxSize)
+
+    for region in regions[1:]:
+        newSquares = set()
+        
+        for esquare in endSquares:
+            #print "in esquare" + str(esquare)
+            for nsquare in region.makeSquareSections(maxSize):
+                testSquare = addSquares([esquare, nsquare])
+
+                if squareIsValid(testSquare):
+                    newSquares.add(testSquare)
+
+        endSquares = newSquares
+                    
+    return endSquares
+                    
+                
 
 # A simple funciton to print the square nicely.
 
 def printSquare(square):
     print square
+
     for row in square:
-        for cell in range(len(row)):
-            row[cell] = str(row[cell]) 
-        print ' '.join(row) 
-        
+        print ' '.join(map(str, row))
+    
 # this function takes  the list of regions from the user, gets the operations
 # and solutions and returns everything as a 
 # dictionary of instances of the Region class.      
@@ -205,9 +174,9 @@ def printRegionList(regionDict):
         print "Result:", regionDict[region].answer
     
 # This function has the user define where the regions are on the puzzle.         
-def getRegions():
+def getRegions(puzzleSize):
     print "lets define the regions"
-    regSquare = [['*']*4 for i in range(4)]
+    regSquare = [['*'] * puzzleSize for i in range(puzzleSize)]
     for row in range(len(regSquare)):
         for col in range(len(regSquare[row])):
             regSquare[row][col] = 'X'
@@ -226,26 +195,6 @@ def getRegions():
             regSquare[coords[0]][coords[1]] = newreg
             
             
-# This function just returns a list of values at given coordinates in a square
-    
-def extractVals(square, cells):
-    vals = []
-    for cell in cells:
-        #print cell, type(cell)
-        #print square
-        vals += [square[cell[0]][cell[1]]]
-    return vals
-    
-# This function takes a dictionary of regions and a square and tests all of them to 
-# see if that square is a valid solution.
-  
-def checkRegions(square, regionDict):
-    for region in regionDict:
-        if not regionDict[region].isValid(square):
-            return False
-    return True
-
-
 # This function calls all of the user prompting functions and returns the final
 # region dictionary, after printing it    
 
@@ -284,30 +233,29 @@ def getFileInfo(filename):
     fi = open(filename,'r')
     info = fi.read()
     info = info.split()
-    regSquare = info[0:4]
-    info = info[4:]
+    puzzleSize = int(info[0])
+    regSquare = info[1:puzzleSize + 1]
+    info = info[puzzleSize + 1:]
     regionDict = fileRegionList(regSquare, info)
     #printRegionList(regionDict)
-    return regionDict
+    return regionDict,puzzleSize
     
     
 # this function ties everything together. Currently it pulls all of the region info
 # from a file (test3.txt), makes a list of all possible squares, and then checks to 
 # see if each square solves the puzzle.  It then prints all of the winning squares.
    
-#def solvePuzzle():
-regionDict = getFileInfo('test3.txt')
-regionList = [regionDict[x] for x in regionDict]
-squares = makeSquares()
-winSquares = []
-for square in squares:
-    if checkRegions(square, regionDict):
-        winSquares    += [square]
-print "the winning squares are:"  
-for i in winSquares:
-    printSquare(i)
+def solvePuzzle():
+    regionDict, puzzleSize = getFileInfo('test3.txt')
+    regionList = [regionDict[x] for x in regionDict]
 
-#easySquare = 
-        
-#solvePuzzle()     
+    winSquares = makeSquareList(puzzleSize, regionList)
+
+    print "the winning squares are:"  
+    for i in winSquares:
+        printSquare(i)
+
+    return regionList
+
+regionList = solvePuzzle()     
   
